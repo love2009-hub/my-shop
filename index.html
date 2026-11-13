@@ -28,20 +28,17 @@
     </div>
 </header>
 
-<!-- Сообщение об успешной оплате -->
 <div id="success-block" class="hidden success-message">
     <h3>✅ Оплата прошла успешно!</h3>
     <p>Спасибо за покупку. Ваш заказ принят в обработку.</p>
     <button class="btn" onclick="showPage('products')">Вернуться к покупкам</button>
 </div>
 
-<!-- СТРАНИЦА ТОВАРОВ -->
 <div id="page-products">
     <h3>Товары</h3>
     <div id="products-list"></div>
 </div>
 
-<!-- СТРАНИЦА КОРЗИНЫ -->
 <div id="page-cart" class="hidden">
     <h3>Корзина</h3>
     <div id="cart-list"></div>
@@ -54,7 +51,6 @@
     <br><button class="btn" onclick="showPage('products')">← Назад к товарам</button>
 </div>
 
-<!-- СТРАНИЦА КАБИНЕТА -->
 <div id="page-account" class="hidden">
     <h3>Личный кабинет</h3>
     <div id="auth-block">
@@ -75,12 +71,11 @@
 </div>
 
 <script>
-    // ✅ ВАШ РЕАЛЬНЫЙ URL ВОРКЕРА (уже вставлен!)
+    // ✅ ВАШ РЕАЛЬНЫЙ URL ВОРКЕРА
     const WORKER_URL = 'https://yookassa-proxy.aroslavrazzivin.workers.dev'; 
     
-    // ⚠️ ЗАМЕНИТЕ ЭТУ СТРОКУ на вашу реальную ссылку GitHub Pages (без слэша на конце)
-    // Например: 'https://aroslavrazzivin.github.io/my-shop'
-    const RETURN_URL = 'https://aroslavrazzivin.github.io/ВАШ_РЕПОЗИТОРИЙ'; 
+    // ✅ ВАШ РЕАЛЬНЫЙ URL САЙТА (без слэша на конце)
+    const RETURN_URL = 'https://love2009-hub.github.io/my-shop'; 
 
     const products = [
         { id: 1, name: 'Белая футболка', price: 1500 },
