@@ -71,10 +71,7 @@
 </div>
 
 <script>
-    // ✅ ВАШ РЕАЛЬНЫЙ URL ВОРКЕРА
     const WORKER_URL = 'https://yookassa-proxy.aroslavrazzivin.workers.dev'; 
-    
-    // ✅ ВАШ РЕАЛЬНЫЙ URL САЙТА (без слэша на конце)
     const RETURN_URL = 'https://love2009-hub.github.io/my-shop'; 
 
     const products = [
@@ -86,7 +83,6 @@
     let cart = JSON.parse(localStorage.getItem('cart')) || [];
 
     function init() {
-        // 🔧 АВТОМАТИЧЕСКАЯ ОЧИСТКА: исправляет ошибку "undefined x 5"
         cart = cart.filter(i => i && i.id && i.name && i.price && i.qty > 0);
         localStorage.setItem('cart', JSON.stringify(cart));
 
@@ -158,6 +154,14 @@
         if (!email) return alert('Введите Email!');
 
         const total = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+        
+        // 🆕 ФОРМИРУЕМ ОПИСАНИЕ ИЗ НАЗВАНИЙ ТОВАРОВ
+        const itemsDescription = cart.map(item => `${item.name} x${item.qty}`).join(', ');
+        // 🆕 ОБРЕЗАЕМ ДО 120 СИМВОЛОВ (лимит ЮKassa - 128 символов)
+        const finalDescription = itemsDescription.length > 120 
+            ? itemsDescription.substring(0, 120) + '...' 
+            : itemsDescription;
+
         const statusEl = document.getElementById('payment-status');
         statusEl.innerText = 'Создаем платеж, подождите...';
         statusEl.style.color = '#666';
@@ -168,7 +172,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     amount: total, 
-                    description: `Заказ одежды на сумму ${total} руб.`,
+                    description: finalDescription, // <-- Передаем конкретные товары
                     return_url: RETURN_URL + '/?success=1'
                 })
             });
@@ -176,7 +180,7 @@
 
             if (data.confirmation_url) {
                 statusEl.innerText = 'Перенаправляем на оплату...';
-                window.location.href = data.confirmation_url; // Редирект на ЮKassa
+                window.location.href = data.confirmation_url;
             } else {
                 statusEl.innerText = 'Ошибка: ' + (data.error || 'Не удалось создать платеж');
                 statusEl.style.color = 'red';
