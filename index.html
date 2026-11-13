@@ -7,13 +7,15 @@
     <style>
         body { font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9f9f9; }
         header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .btn { background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+        .btn { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 16px; }
         .btn:hover { background: #0056b3; }
-        .btn-success { background: #28a745; }
+        .btn-success { background: #28a745; width: 100%; margin-top: 15px; }
         .card { background: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
         .hidden { display: none; }
-        input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 100%; box-sizing: border-box; margin-bottom: 10px; }
-        #message { color: red; font-size: 14px; margin-top: 5px; }
+        input { padding: 10px; border: 1px solid #ddd; border-radius: 6px; width: 100%; box-sizing: border-box; margin-bottom: 10px; font-size: 16px; }
+        #payment-status { color: #666; font-size: 14px; margin-top: 10px; text-align: center; }
+        .test-cards { background: #fff3cd; padding: 15px; border-radius: 6px; font-size: 14px; margin-top: 20px; border: 1px solid #ffeaa7; }
+        .success-message { background: #d4edda; color: #155724; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 20px; }
     </style>
 </head>
 <body>
@@ -26,6 +28,13 @@
     </div>
 </header>
 
+<!-- Сообщение об успешной оплате (показывается, если есть ?success=1 в URL) -->
+<div id="success-block" class="hidden success-message">
+    <h3>✅ Оплата прошла успешно!</h3>
+    <p>Спасибо за покупку. Ваш заказ принят в обработку.</p>
+    <button class="btn" onclick="showPage('products')">Вернуться к покупкам</button>
+</div>
+
 <!-- СТРАНИЦА ТОВАРОВ -->
 <div id="page-products">
     <h3>Товары</h3>
@@ -37,9 +46,11 @@
     <h3>Корзина</h3>
     <div id="cart-list"></div>
     <h4>Итого: <span id="cart-total">0</span> ₽</h4>
+    
     <input type="email" id="user-email" placeholder="Ваш Email для чека">
-    <button class="btn btn-success" style="width:100%" onclick="pay()">Оплатить через ЮKassa</button>
+    <button class="btn btn-success" onclick="initPayment()">Перейти к оплате на сайте ЮKassa</button>
     <p id="payment-status"></p>
+    
     <br><button class="btn" onclick="showPage('products')">← Назад к товарам</button>
 </div>
 
@@ -52,16 +63,22 @@
     </div>
     <div id="profile-block" class="hidden">
         <p>Привет, <b id="user-name"></b>!</p>
-        <p>Ваши прошлые заказы (демо):</p>
-        <ul id="order-history"><li>Заказ #123 - 1500 ₽ (Оплачен)</li></ul>
         <button class="btn" style="background:#dc3545" onclick="logout()">Выйти</button>
     </div>
     <br><button class="btn" onclick="showPage('products')">← Назад к товарам</button>
 </div>
 
+<div class="test-cards">
+    <b>Тестовая карта для оплаты:</b><br>
+    Номер: <b>5555 5555 5555 4444</b> (или 4477)<br>
+    Срок: <b>01/30</b> | CVC: <b>123</b> | 3D-Secure: <b>123</b>
+</div>
+
 <script>
-    // ⚠️ ЗАМЕНИТЕ ЭТУ ССЫЛКУ на адрес вашего Cloudflare Worker из Шага 1
-    const WORKER_URL = 'https://yookassa-proxy.aroslavrazzivin.workers.dev/'; 
+    // ⚠️ ЗАМЕНИТЕ на адрес вашего Cloudflare Worker
+    const WORKER_URL = 'https://yookassa-proxy.ваш-ник.workers.dev'; 
+    // ⚠️ ЗАМЕНИТЕ на вашу реальную ссылку GitHub Pages (без слэша на конце)
+    const RETURN_URL = 'https://vash-nik.github.io/vash-repo'; 
 
     const products = [
         { id: 1, name: 'Белая футболка', price: 1500 },
@@ -71,8 +88,25 @@
 
     let cart = JSON.parse(localStorage.getItem('cart')) || [];
 
-    // Инициализация
     function init() {
+        // Проверяем, вернулись ли мы после успешной оплаты
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('success') === '1') {
+            document.getElementById('success-block').classList.remove('hidden');
+            document.getElementById('page-products').classList.add('hidden');
+            document.getElementById('page-cart').classList.add('hidden');
+            document.getElementById('page-account').classList.add('hidden');
+            
+            // Очищаем корзину после успешной оплаты
+            cart = [];
+            localStorage.setItem('cart', JSON.stringify(cart));
+            updateCartUI();
+            
+            // Убираем ?success=1 из адресной строки для красоты
+            window.history.replaceState({}, document.title, window.location.pathname);
+            return;
+        }
+
         document.getElementById('products-list').innerHTML = products.map(p => `
             <div class="card">
                 <span><b>${p.name}</b><br><small>${p.price} ₽</small></span>
@@ -81,17 +115,10 @@
         `).join('');
         updateCartUI();
         checkAuth();
-        
-        // Если вернулись после оплаты
-        if (window.location.search.includes('success=1')) {
-            alert('Оплата прошла успешно! Спасибо.');
-            cart = [];
-            localStorage.setItem('cart', JSON.stringify(cart));
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }
     }
 
     function showPage(page) {
+        document.getElementById('success-block').classList.add('hidden');
         ['products', 'cart', 'account'].forEach(p => document.getElementById(`page-${p}`).classList.add('hidden'));
         document.getElementById(`page-${page}`).classList.remove('hidden');
         if (page === 'cart') renderCart();
@@ -128,33 +155,44 @@
         document.getElementById('cart-total').innerText = total;
     }
 
-    async function pay() {
+    async function initPayment() {
         const email = document.getElementById('user-email').value;
         if (cart.length === 0) return alert('Корзина пуста!');
         if (!email) return alert('Введите Email!');
 
         const total = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
-        document.getElementById('payment-status').innerText = 'Создаем платеж...';
+        const statusEl = document.getElementById('payment-status');
+        statusEl.innerText = 'Создаем платеж, подождите...';
+        statusEl.style.color = '#666';
 
         try {
             const res = await fetch(WORKER_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount: total, description: `Заказ для ${email}` })
+                body: JSON.stringify({ 
+                    amount: total, 
+                    description: `Заказ одежды на сумму ${total} руб.`,
+                    return_url: RETURN_URL + '?success=1' // Сюда ЮKassa вернет пользователя
+                })
             });
             const data = await res.json();
+
             if (data.confirmation_url) {
-                window.location.href = data.confirmation_url; // Перенаправление на ЮKassa
+                statusEl.innerText = 'Перенаправляем на оплату...';
+                // ГЛАВНЫЙ ШАГ ИЗ ДОКУМЕНТАЦИИ: редирект пользователя на страницу оплаты ЮKassa
+                window.location.href = data.confirmation_url;
             } else {
-                document.getElementById('payment-status').innerText = 'Ошибка: ' + JSON.stringify(data);
+                statusEl.innerText = 'Ошибка: ' + (data.error || 'Не удалось создать платеж');
+                statusEl.style.color = 'red';
+                console.error('Детали ошибки:', data);
             }
         } catch (e) {
-            document.getElementById('payment-status').innerText = 'Ошибка сети. Проверьте консоль.';
+            statusEl.innerText = 'Ошибка сети. Проверьте консоль (F12).';
+            statusEl.style.color = 'red';
             console.error(e);
         }
     }
 
-    // Простой "Личный кабинет" на localStorage
     function login() {
         const name = document.getElementById('login-name').value;
         if (name) {
