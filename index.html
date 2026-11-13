@@ -28,7 +28,7 @@
     </div>
 </header>
 
-<!-- Сообщение об успешной оплате (показывается, если есть ?success=1 в URL) -->
+<!-- Сообщение об успешной оплате -->
 <div id="success-block" class="hidden success-message">
     <h3>✅ Оплата прошла успешно!</h3>
     <p>Спасибо за покупку. Ваш заказ принят в обработку.</p>
@@ -70,15 +70,17 @@
 
 <div class="test-cards">
     <b>Тестовая карта для оплаты:</b><br>
-    Номер: <b>5555 5555 5555 4444</b> (или 4477)<br>
+    Номер: <b>5555 5555 5555 4444</b><br>
     Срок: <b>01/30</b> | CVC: <b>123</b> | 3D-Secure: <b>123</b>
 </div>
 
 <script>
-    // ⚠️ ЗАМЕНИТЕ на адрес вашего Cloudflare Worker
-    const WORKER_URL = 'https://yookassa-proxy.ваш-ник.workers.dev'; 
-    // ⚠️ ЗАМЕНИТЕ на вашу реальную ссылку GitHub Pages (без слэша на конце)
-    const RETURN_URL = 'https://love2009-hub.github.io/my-shop/'; 
+    // ✅ ВАШ РЕАЛЬНЫЙ URL ВОРКЕРА (уже вставлен!)
+    const WORKER_URL = 'https://yookassa-proxy.aroslavrazzivin.workers.dev'; 
+    
+    // ⚠️ ЗАМЕНИТЕ ЭТУ СТРОКУ на вашу реальную ссылку GitHub Pages (без слэша на конце)
+    // Например: 'https://aroslavrazzivin.github.io/my-shop'
+    const RETURN_URL = 'https://aroslavrazzivin.github.io/ВАШ_РЕПОЗИТОРИЙ'; 
 
     const products = [
         { id: 1, name: 'Белая футболка', price: 1500 },
@@ -89,7 +91,10 @@
     let cart = JSON.parse(localStorage.getItem('cart')) || [];
 
     function init() {
-        // Проверяем, вернулись ли мы после успешной оплаты
+        // 🔧 АВТОМАТИЧЕСКАЯ ОЧИСТКА: исправляет ошибку "undefined x 5"
+        cart = cart.filter(i => i && i.id && i.name && i.price && i.qty > 0);
+        localStorage.setItem('cart', JSON.stringify(cart));
+
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('success') === '1') {
             document.getElementById('success-block').classList.remove('hidden');
@@ -97,12 +102,9 @@
             document.getElementById('page-cart').classList.add('hidden');
             document.getElementById('page-account').classList.add('hidden');
             
-            // Очищаем корзину после успешной оплаты
             cart = [];
             localStorage.setItem('cart', JSON.stringify(cart));
             updateCartUI();
-            
-            // Убираем ?success=1 из адресной строки для красоты
             window.history.replaceState({}, document.title, window.location.pathname);
             return;
         }
@@ -172,15 +174,14 @@
                 body: JSON.stringify({ 
                     amount: total, 
                     description: `Заказ одежды на сумму ${total} руб.`,
-                    return_url: RETURN_URL + '?success=1' // Сюда ЮKassa вернет пользователя
+                    return_url: RETURN_URL + '/?success=1'
                 })
             });
             const data = await res.json();
 
             if (data.confirmation_url) {
                 statusEl.innerText = 'Перенаправляем на оплату...';
-                // ГЛАВНЫЙ ШАГ ИЗ ДОКУМЕНТАЦИИ: редирект пользователя на страницу оплаты ЮKassa
-                window.location.href = data.confirmation_url;
+                window.location.href = data.confirmation_url; // Редирект на ЮKassa
             } else {
                 statusEl.innerText = 'Ошибка: ' + (data.error || 'Не удалось создать платеж');
                 statusEl.style.color = 'red';
